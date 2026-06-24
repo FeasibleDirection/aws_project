@@ -52,6 +52,8 @@ export function buildDocument() {
         },
       },
     ],
+    // Every route requires a Cognito JWT (bearer). Paste an ID token in Scalar.
+    security: [{ bearerAuth: [] }],
     paths: {
       "/orders": {
         get: {
@@ -121,6 +123,9 @@ export function buildDocument() {
       },
     },
     components: {
+      securitySchemes: {
+        bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+      },
       schemas: {
         Order: toJson(OrderSchema, "output"),
         CreateOrder: toJson(CreateOrderSchema, "input"),

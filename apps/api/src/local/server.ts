@@ -91,6 +91,16 @@ const server = createServer(async (req, res) => {
     isBase64Encoded: false,
     requestContext: {
       http: { method, path: url.pathname, sourceIp: "127.0.0.1" },
+      // Locally we fake the JWT authorizer claims so the same handler code runs.
+      // Pass header `x-user: <id>` to simulate different authenticated users.
+      authorizer: {
+        jwt: {
+          claims: {
+            sub: (req.headers["x-user"] as string | undefined) ?? "local-user",
+          },
+          scopes: [],
+        },
+      },
     },
   } as unknown as APIGatewayProxyEventV2;
 

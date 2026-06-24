@@ -29,12 +29,11 @@ export const OrderSchema = z
 
 /**
  * Create input = client-supplied fields only. `total` is derived server-side,
- * `status` defaults to PENDING, ids/timestamps are server-owned. In Phase 1
- * `customerId` defaults to "anon"; from Phase 2 it comes from the JWT `sub`.
+ * `status` defaults to PENDING, ids/timestamps are server-owned, and
+ * `customerId` comes from the authenticated JWT `sub` (never the body).
  */
 export const CreateOrderSchema = z
   .object({
-    customerId: z.string().min(1).default("anon"),
     items: z.array(OrderItemSchema).min(1),
   })
   .meta({ id: "CreateOrder" });

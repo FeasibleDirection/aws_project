@@ -6,12 +6,12 @@ import {
 } from "../src/schemas/order";
 
 describe("CreateOrderSchema", () => {
-  it("accepts a valid order and defaults customerId to anon", () => {
+  it("accepts a valid order (customerId comes from the JWT, not the body)", () => {
     const parsed = CreateOrderSchema.parse({
       items: [{ sku: "ABC", qty: 2, price: 9.99 }],
     });
-    expect(parsed.customerId).toBe("anon");
     expect(parsed.items).toHaveLength(1);
+    expect("customerId" in parsed).toBe(false);
   });
 
   it("rejects an empty items array", () => {

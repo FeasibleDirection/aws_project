@@ -1,19 +1,30 @@
 import { describe, it, expect } from "vitest";
 import { App } from "aws-cdk-lib";
 import { Template, Match } from "aws-cdk-lib/assertions";
+import { AuthStack } from "../lib/stacks/auth-stack";
 import { CoreApiStack } from "../lib/stacks/core-api-stack";
 
 describe("CoreApiStack (synthesized — no deploy, $0)", () => {
   const app = new App();
+  const env = { account: "123456789012", region: "us-east-1" };
+  const auth = new AuthStack(app, "TestAuth", { env });
   const stack = new CoreApiStack(app, "TestStack", {
-    env: { account: "123456789012", region: "us-east-1" },
+    env,
+    userPool: auth.userPool,
+    userPoolClient: auth.userPoolClient,
   });
   const template = Template.fromStack(stack);
 
-  it("uses an on-demand DynamoDB table", () => {
-    template.hasResourceProperties("AWS::DynamoDB::Table", {
-      BillingMode: "PAY_PER_REQUEST",
-    });
+  it("uses an on-demand DynamoDB table with a byCustomer GSI", () => {
+    template.hasResourceProperties(
+      "AWS::DynamoDB::Table",
+      Match.objectLike({
+        BillingMode: "PAY_PER_REQUEST",
+        GlobalSecondaryIndexes: Match.arrayWith([
+          Match.objectLike({ IndexName: "byCustomer" }),
+        ]),
+      }),
+    );
   });
 
   it("creates 5 Lambdas on nodejs22.x / arm64 with active tracing", () => {
@@ -30,17 +41,23 @@ describe("CoreApiStack (synthesized — no deploy, $0)", () => {
 
   it("sets 1-week log retention on every function", () => {
     template.resourceCountIs("AWS::Logs::LogGroup", 5);
-    template.hasResourceProperties("AWS::Logs::LogGroup", {
-      RetentionInDays: 7,
-    });
+    template.hasResourceProperties("AWS::Logs::LogGroup", { RetentionInDays: 7 });
   });
 
-  it("exposes an HTTP API with exactly 5 routes", () => {
+  it("protects all 5 routes with a Cognito JWT authorizer", () => {
     template.resourceCountIs("AWS::ApiGatewayV2::Api", 1);
     template.resourceCountIs("AWS::ApiGatewayV2::Route", 5);
+    template.resourceCountIs("AWS::ApiGatewayV2::Authorizer", 1);
+    template.hasResourceProperties("AWS::ApiGatewayV2::Authorizer", {
+      AuthorizerType: "JWT",
+    });
+    template.hasResourceProperties(
+      "AWS::ApiGatewayV2::Route",
+      Match.objectLike({ AuthorizationType: "JWT" }),
+    );
   });
 
-  it("grants per-route least privilege (read role gets only GetItem)", () => {
+  it("grants per-route least privilege (read role gets only Query/GetItem)", () => {
     template.hasResourceProperties(
       "AWS::IAM::Policy",
       Match.objectLike({

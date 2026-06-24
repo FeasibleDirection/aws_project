@@ -60,6 +60,9 @@ importers:
 
   infra:
     dependencies:
+      '@app/shared':
+        specifier: workspace:*
+        version: link:../packages/shared
       aws-cdk-lib:
         specifier: ^2.160.0
         version: 2.260.0(constructs@10.6.0)

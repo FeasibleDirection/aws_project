@@ -46,15 +46,28 @@ pnpm --filter @app/web build && pnpm --filter @app/web preview   # http://localh
 export CDK_DEFAULT_REGION=us-east-1
 pnpm --filter @app/infra bootstrap         # cdk bootstrap(每账号每区域一次)
 
-# 部署核心(常开,~$0/月:DynamoDB on-demand + Lambda + HTTP API 都在免费层)
-pnpm --filter @app/infra synth             # 看 CloudFormation
-pnpm --filter @app/infra deploy            # 输出 ApiUrl
+# 部署（AuthStack + CoreApiStack,常开 ~$0/月:Cognito/DynamoDB/Lambda/HTTP API 都在免费层）
+pnpm --filter @app/infra synth                          # 看 CloudFormation
+pnpm --filter @app/infra run deploy -- --all --require-approval never
 
 # 用完销毁
-pnpm --filter @app/infra destroy
+pnpm --filter @app/infra run destroy -- --all
 ```
+输出会有:`AuthStack.UserPoolId`、`AuthStack.UserPoolClientId`、`CoreApiStack.ApiUrl`。
 
-部署后:把输出的 **ApiUrl** 填进 `apps/web` 页面的 "API base",或打开 `docs.html`(Scalar)直接 Try-it-out。
+### Phase 2:拿 Cognito token 测(路由现在都要 JWT)
+```powershell
+$POOL="<UserPoolId>"; $CLIENT="<UserPoolClientId>"; $api="<ApiUrl>"
+aws cognito-idp admin-create-user --user-pool-id $POOL --username demo@example.com --message-action SUPPRESS
+aws cognito-idp admin-set-user-password --user-pool-id $POOL --username demo@example.com --password "Passw0rd!23" --permanent
+$TOKEN = (aws cognito-idp initiate-auth --client-id $CLIENT --auth-flow USER_PASSWORD_AUTH `
+  --auth-parameters "USERNAME=demo@example.com,PASSWORD=Passw0rd!23" --query "AuthenticationResult.IdToken" --output text)
+
+curl.exe -s "$api/orders"                                   # 无 token → 401
+curl.exe -s "$api/orders" -H "authorization: Bearer $TOKEN" # 带 token → 200,只看到自己的订单
+curl.exe -s -X POST "$api/orders" -H "authorization: Bearer $TOKEN" -H "content-type: application/json" -d '{\"items\":[{\"sku\":\"A\",\"qty\":2,\"price\":9.99}]}'
+```
+前端 print 页:`apps/web` 页面顶部填 **API base** + 把 `$TOKEN` 粘进 **JWT** 框;Scalar `docs.html` 右上角 Authorize 里粘 token。
 
 ## 成本守则
 
@@ -67,8 +80,8 @@ pnpm --filter @app/infra destroy
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| 1 | 核心 CRUD 主干(本仓库当前) | ✅ |
-| 2 | Cognito 认证 + JWT authorizer | ⏳ |
+| 1 | 核心 CRUD 主干 | ✅ |
+| 2 | Cognito 认证 + JWT authorizer + 按用户隔离(GSI) | ✅ |
 | 3 | S3 presigned 上传 | ⏳ |
 | 4 | SNS/SQS+DLQ / EventBridge 异步 | ⏳ |
 | 5 | Step Functions 履约 saga | ⏳ |

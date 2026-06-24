@@ -8,6 +8,9 @@ import {
   Table,
 } from "aws-cdk-lib/aws-dynamodb";
 import { HttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
+import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
+import type { IUserPool, IUserPoolClient } from "aws-cdk-lib/aws-cognito";
+import { GSI_BY_CUSTOMER, GSI_PK, GSI_SK } from "@app/shared";
 import { CrudFunction } from "../constructs/crud-function";
 import { CrudApi } from "../constructs/crud-api";
 
@@ -15,13 +18,20 @@ const here = dirname(fileURLToPath(import.meta.url));
 // infra/lib/stacks -> repo root -> apps/api/src/routes
 const ROUTES_DIR = resolve(here, "../../../apps/api/src/routes");
 
+export interface CoreApiStackProps extends StackProps {
+  /** Cognito pool whose JWTs the HTTP API authorizer validates. */
+  readonly userPool: IUserPool;
+  readonly userPoolClient: IUserPoolClient;
+}
+
 /**
  * The always-on, ~$0 CRUD spine: DynamoDB (on-demand) + 5 per-route Lambdas
- * behind an HTTP API. Each function's IAM role is granted EXACTLY ONE DynamoDB
- * action — the read functions literally cannot DeleteItem.
+ * behind an HTTP API, protected by a Cognito JWT authorizer. Each function's IAM
+ * role is granted EXACTLY ONE DynamoDB action. A `byCustomer` GSI lets the list
+ * route Query per-user instead of Scanning the whole table.
  */
 export class CoreApiStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: CoreApiStackProps) {
     super(scope, id, props);
 
     const table = new Table(this, "OrdersTable", {
@@ -29,6 +39,12 @@ export class CoreApiStack extends Stack {
       billingMode: BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.DESTROY, // demo posture; RETAIN in prod
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+    });
+    // Access-pattern-driven GSI: list orders by owner, newest first.
+    table.addGlobalSecondaryIndex({
+      indexName: GSI_BY_CUSTOMER,
+      partitionKey: { name: GSI_PK, type: AttributeType.STRING },
+      sortKey: { name: GSI_SK, type: AttributeType.STRING },
     });
 
     const environment = { TABLE_NAME: table.tableName };
@@ -48,11 +64,18 @@ export class CoreApiStack extends Stack {
     // --- per-route least privilege: one action per function role ---
     table.grant(createFn, "dynamodb:PutItem");
     table.grant(getFn, "dynamodb:GetItem");
-    table.grant(listFn, "dynamodb:Scan");
+    table.grant(listFn, "dynamodb:Query"); // includes the GSI index ARN
     table.grant(updateFn, "dynamodb:UpdateItem");
     table.grant(deleteFn, "dynamodb:DeleteItem");
 
-    const crud = new CrudApi(this, "Api");
+    // Cognito JWT authorizer on every route — Lambda never sees anon requests.
+    const authorizer = new HttpUserPoolAuthorizer(
+      "JwtAuthorizer",
+      props.userPool,
+      { userPoolClients: [props.userPoolClient] },
+    );
+
+    const crud = new CrudApi(this, "Api", { authorizer });
     crud.route("CreateRoute", HttpMethod.POST, "/orders", createFn);
     crud.route("ListRoute", HttpMethod.GET, "/orders", listFn);
     crud.route("GetRoute", HttpMethod.GET, "/orders/{id}", getFn);

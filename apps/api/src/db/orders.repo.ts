@@ -3,7 +3,7 @@ import {
   PutCommand,
   UpdateCommand,
   DeleteCommand,
-  ScanCommand,
+  QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
   AppError,
@@ -11,6 +11,7 @@ import {
   newOrderId,
   nowIso,
   TABLE_PK,
+  GSI_BY_CUSTOMER,
   type Order,
   type CreateOrderInput,
   type UpdateOrderInput,
@@ -26,11 +27,15 @@ const isConditionalCheckFailed = (err: unknown): boolean =>
 const sumTotal = (items: CreateOrderInput["items"]): number =>
   items.reduce((sum, i) => sum + i.qty * i.price, 0);
 
-export async function createOrder(input: CreateOrderInput): Promise<Order> {
+/** customerId is always the authenticated caller — never client-supplied. */
+export async function createOrder(
+  callerId: string,
+  input: CreateOrderInput,
+): Promise<Order> {
   const now = nowIso();
   const order: Order = {
     id: newOrderId(),
-    customerId: input.customerId,
+    customerId: callerId,
     items: input.items,
     status: "PENDING",
     total: sumTotal(input.items),
@@ -42,7 +47,6 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       new PutCommand({
         TableName: TABLE_NAME,
         Item: order,
-        // idempotent create: never silently overwrite an existing order
         ConditionExpression: "attribute_not_exists(#pk)",
         ExpressionAttributeNames: { "#pk": TABLE_PK },
       }),
@@ -54,26 +58,35 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   return order;
 }
 
-export async function getOrder(id: string): Promise<Order> {
+export async function getOrder(callerId: string, id: string): Promise<Order> {
   const res = await ddb.send(
     new GetCommand({ TableName: TABLE_NAME, Key: { [TABLE_PK]: id } }),
   );
-  if (!res.Item) throw AppError.notFound(`Order ${id} not found`);
-  return res.Item as Order;
+  const order = res.Item as Order | undefined;
+  // 404 (not 403) on a foreign order so we don't leak its existence.
+  if (!order || order.customerId !== callerId) {
+    throw AppError.notFound(`Order ${id} not found`);
+  }
+  return order;
 }
 
 /**
- * Phase 1 uses Scan because the simple single-key table has no partition to
- * Query. The talking-point doc explains why Scan does not scale and how a GSI
- * (e.g. GSI1PK = customerId) turns this into a Query.
+ * Per-user list = Query the `byCustomer` GSI by the caller's id (newest first),
+ * paginated. This is the access-pattern-driven GSI that replaces a full-table
+ * Scan — the canonical DynamoDB modeling answer.
  */
 export async function listOrders(
+  callerId: string,
   limit: number,
   cursor?: string,
 ): Promise<Page<Order>> {
   const res = await ddb.send(
-    new ScanCommand({
+    new QueryCommand({
       TableName: TABLE_NAME,
+      IndexName: GSI_BY_CUSTOMER,
+      KeyConditionExpression: "customerId = :cid",
+      ExpressionAttributeValues: { ":cid": callerId },
+      ScanIndexForward: false,
       Limit: limit,
       ExclusiveStartKey: decodeCursor(cursor),
     }),
@@ -85,12 +98,16 @@ export async function listOrders(
 }
 
 export async function updateOrder(
+  callerId: string,
   id: string,
   input: UpdateOrderInput,
 ): Promise<Order> {
   const sets: string[] = ["updatedAt = :updatedAt"];
   const names: Record<string, string> = { "#pk": TABLE_PK };
-  const values: Record<string, unknown> = { ":updatedAt": nowIso() };
+  const values: Record<string, unknown> = {
+    ":updatedAt": nowIso(),
+    ":cid": callerId,
+  };
 
   if (input.items !== undefined) {
     sets.push("#items = :items", "#total = :total");
@@ -101,7 +118,7 @@ export async function updateOrder(
   }
   if (input.status !== undefined) {
     sets.push("#status = :status");
-    names["#status"] = "status"; // 'status' is a DynamoDB reserved word
+    names["#status"] = "status"; // reserved word
     values[":status"] = input.status;
   }
 
@@ -113,7 +130,8 @@ export async function updateOrder(
         UpdateExpression: `SET ${sets.join(", ")}`,
         ExpressionAttributeNames: names,
         ExpressionAttributeValues: values,
-        ConditionExpression: "attribute_exists(#pk)", // 404, don't resurrect
+        // existence + ownership in one conditional → 404 on missing OR foreign
+        ConditionExpression: "attribute_exists(#pk) AND customerId = :cid",
         ReturnValues: "ALL_NEW",
       }),
     );
@@ -124,14 +142,15 @@ export async function updateOrder(
   }
 }
 
-export async function deleteOrder(id: string): Promise<void> {
+export async function deleteOrder(callerId: string, id: string): Promise<void> {
   try {
     await ddb.send(
       new DeleteCommand({
         TableName: TABLE_NAME,
         Key: { [TABLE_PK]: id },
-        ConditionExpression: "attribute_exists(#pk)",
+        ConditionExpression: "attribute_exists(#pk) AND customerId = :cid",
         ExpressionAttributeNames: { "#pk": TABLE_PK },
+        ExpressionAttributeValues: { ":cid": callerId },
       }),
     );
   } catch (err) {

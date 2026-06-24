@@ -3,6 +3,8 @@
 import {
   getApiBase,
   setApiBase,
+  getToken,
+  setToken,
   listOrders,
   getOrder,
   createOrder,
@@ -15,6 +17,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const out = $<HTMLPreElement>("out");
 const idInput = $<HTMLInputElement>("orderId");
 const baseInput = $<HTMLInputElement>("apiBase");
+const tokenInput = $<HTMLInputElement>("jwt");
 
 function print(label: string, value: unknown): void {
   out.textContent = `// ${label}\n${JSON.stringify(value, null, 2)}`;
@@ -37,12 +40,14 @@ function rememberId(value: unknown): void {
 baseInput.value = getApiBase();
 baseInput.addEventListener("change", () => setApiBase(baseInput.value));
 
+tokenInput.value = getToken();
+tokenInput.addEventListener("change", () => setToken(tokenInput.value));
+
 $("btnList").addEventListener("click", () => run("GET /orders", () => listOrders()));
 
 $("btnCreate").addEventListener("click", () =>
   run("POST /orders", async () => {
     const res = await createOrder({
-      customerId: "anon",
       items: [
         { sku: "SKU-1", qty: 2, price: 9.99 },
         { sku: "SKU-2", qty: 1, price: 4.5 },
