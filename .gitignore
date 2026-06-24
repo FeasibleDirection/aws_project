@@ -1,0 +1,23 @@
+node_modules/
+dist/
+cdk.out/
+*.tsbuildinfo
+.turbo/
+coverage/
+
+# generated artifacts
+**/openapi.json
+apps/web/public/openapi.json
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# aws / cdk
+cdk.context.json.bak
+*.log
+
+# os
+.DS_Store
+Thumbs.db

@@ -1,0 +1,10 @@
+# Local DynamoDB for $0 inner-loop development.
+# Usage: docker compose up -d   (requires Docker Desktop)
+# The API points at this when IS_LOCAL=1 (see apps/api/src/db/client.ts).
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: aws-crud-dynamodb-local
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports:
+      - "8000:8000"

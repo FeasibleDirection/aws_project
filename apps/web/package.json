@@ -1,0 +1,14 @@
+{
+  "name": "@app/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "preview": "node serve.mjs"
+  },
+  "dependencies": {
+    "@app/shared": "workspace:*"
+  }
+}

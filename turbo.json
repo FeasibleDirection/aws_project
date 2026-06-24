@@ -1,0 +1,28 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "cdk.out/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {},
+    "openapi:gen": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "openapi.json"]
+    },
+    "synth": {
+      "dependsOn": ["^build", "openapi:gen"],
+      "outputs": ["cdk.out/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
