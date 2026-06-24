@@ -5,6 +5,7 @@ import { AuthStack } from "../lib/stacks/auth-stack";
 import { StorageStack } from "../lib/stacks/storage-stack";
 import { CoreApiStack } from "../lib/stacks/core-api-stack";
 import { AsyncStack } from "../lib/stacks/async-stack";
+import { OrchestrationStack } from "../lib/stacks/orchestration-stack";
 
 const ENV = { account: "123456789012", region: "us-east-1" };
 
@@ -135,5 +136,37 @@ describe("AsyncStack", () => {
     template.resourceCountIs("AWS::Lambda::Function", 3);
     // DynamoDB stream source + SQS source
     template.resourceCountIs("AWS::Lambda::EventSourceMapping", 2);
+  });
+});
+
+describe("OrchestrationStack", () => {
+  const app = new App();
+  const auth = new AuthStack(app, "A3", { env: ENV });
+  const storage = new StorageStack(app, "St3", { env: ENV });
+  const core = new CoreApiStack(app, "C3", {
+    env: ENV,
+    userPool: auth.userPool,
+    userPoolClient: auth.userPoolClient,
+    bucket: storage.bucket,
+  });
+  const asyncStack = new AsyncStack(app, "Asy3", { env: ENV, table: core.table });
+  const stack = new OrchestrationStack(app, "Orch3", {
+    env: ENV,
+    table: core.table,
+    bus: asyncStack.bus,
+  });
+  const template = Template.fromStack(stack);
+
+  it("creates a Standard state machine with 5 task Lambdas", () => {
+    template.resourceCountIs("AWS::StepFunctions::StateMachine", 1);
+    template.hasResourceProperties(
+      "AWS::StepFunctions::StateMachine",
+      Match.objectLike({ StateMachineType: "STANDARD" }),
+    );
+    template.resourceCountIs("AWS::Lambda::Function", 5);
+  });
+
+  it("subscribes the state machine to order.created", () => {
+    template.resourceCountIs("AWS::Events::Rule", 1);
   });
 });

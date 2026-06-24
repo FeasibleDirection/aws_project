@@ -5,6 +5,7 @@ import { AuthStack } from "../lib/stacks/auth-stack";
 import { StorageStack } from "../lib/stacks/storage-stack";
 import { CoreApiStack } from "../lib/stacks/core-api-stack";
 import { AsyncStack } from "../lib/stacks/async-stack";
+import { OrchestrationStack } from "../lib/stacks/orchestration-stack";
 
 const app = new App();
 const config = getConfig("dev");
@@ -20,7 +21,17 @@ const core = new CoreApiStack(app, "CoreApiStack", {
 });
 
 // Phase 4: async event fan-out driven by the table's stream.
-new AsyncStack(app, "AsyncStack", { env: config.env, table: core.table });
+const asyncStack = new AsyncStack(app, "AsyncStack", {
+  env: config.env,
+  table: core.table,
+});
+
+// Phase 5: Step Functions fulfillment saga, triggered by order.created.
+new OrchestrationStack(app, "OrchestrationStack", {
+  env: config.env,
+  table: core.table,
+  bus: asyncStack.bus,
+});
 
 // Cost tracking + ownership tags applied to every resource.
 Tags.of(app).add("Project", APP_NAME);

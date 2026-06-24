@@ -27,11 +27,15 @@ export interface AsyncStackProps extends StackProps {
  * consumer → SNS, plus a scheduled cleanup. Depends on CoreApiStack (the table).
  */
 export class AsyncStack extends Stack {
+  /** Exposed so OrchestrationStack can subscribe to order.created. */
+  readonly bus: EventBus;
+
   constructor(scope: Construct, id: string, props: AsyncStackProps) {
     super(scope, id, props);
     const { table } = props;
 
-    const bus = new EventBus(this, "OrdersBus", { eventBusName: "orders-bus" });
+    this.bus = new EventBus(this, "OrdersBus", { eventBusName: "orders-bus" });
+    const bus = this.bus;
     const topic = new Topic(this, "OrderNotifications", {
       topicName: "order-notifications",
     });
