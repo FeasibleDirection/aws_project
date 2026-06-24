@@ -142,6 +142,29 @@ export async function updateOrder(
   }
 }
 
+/** Record an attachment object key on an order (ownership-checked → 404). */
+export async function attachToOrder(
+  callerId: string,
+  id: string,
+  key: string,
+): Promise<void> {
+  try {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { [TABLE_PK]: id },
+        UpdateExpression: "SET attachmentKey = :k, updatedAt = :u",
+        ExpressionAttributeNames: { "#pk": TABLE_PK },
+        ExpressionAttributeValues: { ":k": key, ":u": nowIso(), ":cid": callerId },
+        ConditionExpression: "attribute_exists(#pk) AND customerId = :cid",
+      }),
+    );
+  } catch (err) {
+    if (isConditionalCheckFailed(err)) throw AppError.notFound(`Order ${id} not found`);
+    throw err;
+  }
+}
+
 export async function deleteOrder(callerId: string, id: string): Promise<void> {
   try {
     await ddb.send(

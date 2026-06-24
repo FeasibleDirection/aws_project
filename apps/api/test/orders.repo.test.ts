@@ -14,6 +14,7 @@ import {
   updateOrder,
   deleteOrder,
   listOrders,
+  attachToOrder,
 } from "../src/db/orders.repo";
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
@@ -108,5 +109,22 @@ describe("deleteOrder", () => {
   it("maps ConditionalCheckFailed → 404", async () => {
     ddbMock.on(DeleteCommand).rejects(conditionalFail());
     await expect(deleteOrder(USER, "x")).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("attachToOrder", () => {
+  it("sets attachmentKey with an ownership condition", async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    await attachToOrder(USER, "x", "attachments/u/x/abc");
+    const input = ddbMock.commandCalls(UpdateCommand)[0]!.args[0].input;
+    expect(input.UpdateExpression).toContain("attachmentKey = :k");
+    expect(input.ConditionExpression).toBe("attribute_exists(#pk) AND customerId = :cid");
+    expect(input.ExpressionAttributeValues?.[":cid"]).toBe(USER);
+  });
+  it("maps ConditionalCheckFailed → 404", async () => {
+    ddbMock.on(UpdateCommand).rejects(conditionalFail());
+    await expect(attachToOrder(USER, "x", "k")).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });

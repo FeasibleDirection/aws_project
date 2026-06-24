@@ -15,6 +15,8 @@ describe("buildDocument", () => {
     expect(doc.paths["/orders/{id}"].get.operationId).toBe("getOrder");
     expect(doc.paths["/orders/{id}"].patch.operationId).toBe("updateOrder");
     expect(doc.paths["/orders/{id}"].delete.operationId).toBe("deleteOrder");
+    expect(doc.paths["/orders/{id}/attachment"].post.operationId).toBe("presignUpload");
+    expect(doc.paths["/orders/{id}/attachment"].get.operationId).toBe("presignDownload");
   });
 
   it("projects component schemas from the Zod SSOT", () => {

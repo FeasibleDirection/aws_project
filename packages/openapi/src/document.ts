@@ -3,6 +3,7 @@ import {
   OrderSchema,
   CreateOrderSchema,
   UpdateOrderSchema,
+  AttachmentRequestSchema,
   ApiErrorSchema,
 } from "@app/shared";
 
@@ -121,6 +122,53 @@ export function buildDocument() {
           },
         },
       },
+      "/orders/{id}/attachment": {
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" } },
+        ],
+        post: {
+          summary: "Get a presigned upload URL for an order attachment",
+          operationId: "presignUpload",
+          requestBody: {
+            required: false,
+            content: { "application/json": { schema: ref("AttachmentRequest") } },
+          },
+          responses: {
+            "200": {
+              description: "Presigned PUT URL + object key",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { uploadUrl: { type: "string" }, key: { type: "string" } },
+                    required: ["uploadUrl", "key"],
+                  },
+                },
+              },
+            },
+            "404": jsonResponse("Order not found", "ApiError"),
+          },
+        },
+        get: {
+          summary: "Get a presigned download URL for an order attachment",
+          operationId: "presignDownload",
+          responses: {
+            "200": {
+              description: "Presigned GET URL",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { downloadUrl: { type: "string" } },
+                    required: ["downloadUrl"],
+                  },
+                },
+              },
+            },
+            "404": jsonResponse("No attachment / order not found", "ApiError"),
+          },
+        },
+      },
     },
     components: {
       securitySchemes: {
@@ -130,6 +178,7 @@ export function buildDocument() {
         Order: toJson(OrderSchema, "output"),
         CreateOrder: toJson(CreateOrderSchema, "input"),
         UpdateOrder: toJson(UpdateOrderSchema, "input"),
+        AttachmentRequest: toJson(AttachmentRequestSchema, "input"),
         ApiError: toJson(ApiErrorSchema, "output"),
       },
     },

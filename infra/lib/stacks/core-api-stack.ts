@@ -10,6 +10,7 @@ import {
 import { HttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import type { IUserPool, IUserPoolClient } from "aws-cdk-lib/aws-cognito";
+import type { IBucket } from "aws-cdk-lib/aws-s3";
 import { GSI_BY_CUSTOMER, GSI_PK, GSI_SK } from "@app/shared";
 import { CrudFunction } from "../constructs/crud-function";
 import { CrudApi } from "../constructs/crud-api";
@@ -22,6 +23,8 @@ export interface CoreApiStackProps extends StackProps {
   /** Cognito pool whose JWTs the HTTP API authorizer validates. */
   readonly userPool: IUserPool;
   readonly userPoolClient: IUserPoolClient;
+  /** Bucket for order attachments (presigned upload/download). */
+  readonly bucket: IBucket;
 }
 
 /**
@@ -48,10 +51,10 @@ export class CoreApiStack extends Stack {
     });
 
     const environment = { TABLE_NAME: table.tableName };
-    const make = (id: string, file: string) =>
+    const make = (id: string, file: string, extraEnv?: Record<string, string>) =>
       new CrudFunction(this, id, {
         entry: resolve(ROUTES_DIR, file),
-        environment,
+        environment: { ...environment, ...extraEnv },
         description: `${id} (orders ${file})`,
       }).fn;
 
@@ -60,6 +63,9 @@ export class CoreApiStack extends Stack {
     const listFn = make("ListFn", "list.ts");
     const updateFn = make("UpdateFn", "update.ts");
     const deleteFn = make("DeleteFn", "delete.ts");
+    const bucketEnv = { BUCKET_NAME: props.bucket.bucketName };
+    const uploadFn = make("PresignUploadFn", "attachment-upload.ts", bucketEnv);
+    const downloadFn = make("PresignDownloadFn", "attachment-download.ts", bucketEnv);
 
     // --- per-route least privilege: one action per function role ---
     table.grant(createFn, "dynamodb:PutItem");
@@ -67,6 +73,11 @@ export class CoreApiStack extends Stack {
     table.grant(listFn, "dynamodb:Query"); // includes the GSI index ARN
     table.grant(updateFn, "dynamodb:UpdateItem");
     table.grant(deleteFn, "dynamodb:DeleteItem");
+    // presign-upload writes the key onto the order; presign-download reads it
+    table.grant(uploadFn, "dynamodb:UpdateItem");
+    props.bucket.grantPut(uploadFn);
+    table.grant(downloadFn, "dynamodb:GetItem");
+    props.bucket.grantRead(downloadFn);
 
     // Cognito JWT authorizer on every route — Lambda never sees anon requests.
     const authorizer = new HttpUserPoolAuthorizer(
@@ -81,6 +92,8 @@ export class CoreApiStack extends Stack {
     crud.route("GetRoute", HttpMethod.GET, "/orders/{id}", getFn);
     crud.route("UpdateRoute", HttpMethod.PATCH, "/orders/{id}", updateFn);
     crud.route("DeleteRoute", HttpMethod.DELETE, "/orders/{id}", deleteFn);
+    crud.route("AttachUploadRoute", HttpMethod.POST, "/orders/{id}/attachment", uploadFn);
+    crud.route("AttachDownloadRoute", HttpMethod.GET, "/orders/{id}/attachment", downloadFn);
 
     new CfnOutput(this, "ApiUrl", { value: crud.api.apiEndpoint });
     new CfnOutput(this, "TableName", { value: table.tableName });

@@ -6,3 +6,4 @@ export * from "./types";
 export * from "./schemas/common";
 export * from "./schemas/order";
 export * from "./schemas/pagination";
+export * from "./schemas/attachment";

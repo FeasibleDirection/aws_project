@@ -2,16 +2,21 @@ import { describe, it, expect } from "vitest";
 import { App } from "aws-cdk-lib";
 import { Template, Match } from "aws-cdk-lib/assertions";
 import { AuthStack } from "../lib/stacks/auth-stack";
+import { StorageStack } from "../lib/stacks/storage-stack";
 import { CoreApiStack } from "../lib/stacks/core-api-stack";
+
+const ENV = { account: "123456789012", region: "us-east-1" };
 
 describe("CoreApiStack (synthesized — no deploy, $0)", () => {
   const app = new App();
-  const env = { account: "123456789012", region: "us-east-1" };
+  const env = ENV;
   const auth = new AuthStack(app, "TestAuth", { env });
+  const storage = new StorageStack(app, "TestStorage", { env });
   const stack = new CoreApiStack(app, "TestStack", {
     env,
     userPool: auth.userPool,
     userPoolClient: auth.userPoolClient,
+    bucket: storage.bucket,
   });
   const template = Template.fromStack(stack);
 
@@ -27,8 +32,8 @@ describe("CoreApiStack (synthesized — no deploy, $0)", () => {
     );
   });
 
-  it("creates 5 Lambdas on nodejs22.x / arm64 with active tracing", () => {
-    template.resourceCountIs("AWS::Lambda::Function", 5);
+  it("creates 7 Lambdas on nodejs22.x / arm64 with active tracing", () => {
+    template.resourceCountIs("AWS::Lambda::Function", 7);
     template.hasResourceProperties(
       "AWS::Lambda::Function",
       Match.objectLike({
@@ -40,13 +45,13 @@ describe("CoreApiStack (synthesized — no deploy, $0)", () => {
   });
 
   it("sets 1-week log retention on every function", () => {
-    template.resourceCountIs("AWS::Logs::LogGroup", 5);
+    template.resourceCountIs("AWS::Logs::LogGroup", 7);
     template.hasResourceProperties("AWS::Logs::LogGroup", { RetentionInDays: 7 });
   });
 
-  it("protects all 5 routes with a Cognito JWT authorizer", () => {
+  it("protects all 7 routes with a Cognito JWT authorizer", () => {
     template.resourceCountIs("AWS::ApiGatewayV2::Api", 1);
-    template.resourceCountIs("AWS::ApiGatewayV2::Route", 5);
+    template.resourceCountIs("AWS::ApiGatewayV2::Route", 7);
     template.resourceCountIs("AWS::ApiGatewayV2::Authorizer", 1);
     template.hasResourceProperties("AWS::ApiGatewayV2::Authorizer", {
       AuthorizerType: "JWT",
@@ -76,6 +81,27 @@ describe("CoreApiStack (synthesized — no deploy, $0)", () => {
             Match.objectLike({ Action: "dynamodb:DeleteItem" }),
           ]),
         }),
+      }),
+    );
+  });
+});
+
+describe("StorageStack", () => {
+  const app = new App();
+  const stack = new StorageStack(app, "TestStorageOnly", { env: ENV });
+  const template = Template.fromStack(stack);
+
+  it("creates a private, encrypted attachments bucket", () => {
+    template.hasResourceProperties(
+      "AWS::S3::Bucket",
+      Match.objectLike({
+        PublicAccessBlockConfiguration: {
+          BlockPublicAcls: true,
+          BlockPublicPolicy: true,
+          IgnorePublicAcls: true,
+          RestrictPublicBuckets: true,
+        },
+        BucketEncryption: Match.anyValue(),
       }),
     );
   });

@@ -21,6 +21,8 @@ const { handler: getH } = await import("../routes/get");
 const { handler: listH } = await import("../routes/list");
 const { handler: updateH } = await import("../routes/update");
 const { handler: deleteH } = await import("../routes/delete");
+const { handler: attachUploadH } = await import("../routes/attachment-upload");
+const { handler: attachDownloadH } = await import("../routes/attachment-download");
 
 type RouteHandler = typeof createH;
 
@@ -34,6 +36,12 @@ function route(
   if (clean === "/orders") {
     if (method === "GET") return { handler: listH, params: {} };
     if (method === "POST") return { handler: createH, params: {} };
+  }
+  const att = clean.match(/^\/orders\/([^/]+)\/attachment$/);
+  if (att) {
+    const id = decodeURIComponent(att[1]!);
+    if (method === "POST") return { handler: attachUploadH, params: { id } };
+    if (method === "GET") return { handler: attachDownloadH, params: { id } };
   }
   const m = clean.match(/^\/orders\/([^/]+)$/);
   if (m) {
