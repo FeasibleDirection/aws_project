@@ -5,6 +5,7 @@ import { CfnOutput, RemovalPolicy, Stack, type StackProps } from "aws-cdk-lib";
 import {
   AttributeType,
   BillingMode,
+  StreamViewType,
   Table,
 } from "aws-cdk-lib/aws-dynamodb";
 import { HttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
@@ -34,6 +35,9 @@ export interface CoreApiStackProps extends StackProps {
  * route Query per-user instead of Scanning the whole table.
  */
 export class CoreApiStack extends Stack {
+  /** Exposed so AsyncStack can consume the stream + grant cleanup access. */
+  readonly table: Table;
+
   constructor(scope: Construct, id: string, props: CoreApiStackProps) {
     super(scope, id, props);
 
@@ -42,7 +46,9 @@ export class CoreApiStack extends Stack {
       billingMode: BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.DESTROY, // demo posture; RETAIN in prod
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      stream: StreamViewType.NEW_AND_OLD_IMAGES, // CDC source for async events
     });
+    this.table = table;
     // Access-pattern-driven GSI: list orders by owner, newest first.
     table.addGlobalSecondaryIndex({
       indexName: GSI_BY_CUSTOMER,

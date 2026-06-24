@@ -83,7 +83,7 @@ curl.exe -s -X POST "$api/orders" -H "authorization: Bearer $TOKEN" -H "content-
 | 1 | 核心 CRUD 主干 | ✅ |
 | 2 | Cognito 认证 + JWT authorizer + 按用户隔离(GSI) | ✅ |
 | 3 | S3 presigned 上传/下载(订单附件) | ✅ |
-| 4 | SNS/SQS+DLQ / EventBridge 异步 | ⏳ |
+| 4 | 异步:Streams→EventBridge→SQS+DLQ→SNS + 定时清理 | ✅ |
 | 5 | Step Functions 履约 saga | ⏳ |
 | 6 | 可观测(Powertools+X-Ray+CloudWatch) | ⏳ |
 | 7 | Aurora Serverless v2 + ElastiCache + VPC(按需) | ⏳ |

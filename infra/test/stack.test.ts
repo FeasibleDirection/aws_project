@@ -4,6 +4,7 @@ import { Template, Match } from "aws-cdk-lib/assertions";
 import { AuthStack } from "../lib/stacks/auth-stack";
 import { StorageStack } from "../lib/stacks/storage-stack";
 import { CoreApiStack } from "../lib/stacks/core-api-stack";
+import { AsyncStack } from "../lib/stacks/async-stack";
 
 const ENV = { account: "123456789012", region: "us-east-1" };
 
@@ -104,5 +105,35 @@ describe("StorageStack", () => {
         BucketEncryption: Match.anyValue(),
       }),
     );
+  });
+});
+
+describe("AsyncStack", () => {
+  const app = new App();
+  const auth = new AuthStack(app, "A2", { env: ENV });
+  const storage = new StorageStack(app, "S2", { env: ENV });
+  const core = new CoreApiStack(app, "C2", {
+    env: ENV,
+    userPool: auth.userPool,
+    userPoolClient: auth.userPoolClient,
+    bucket: storage.bucket,
+  });
+  const stack = new AsyncStack(app, "Async2", { env: ENV, table: core.table });
+  const template = Template.fromStack(stack);
+
+  it("buffers via SQS with a DLQ redrive policy", () => {
+    template.resourceCountIs("AWS::SQS::Queue", 2);
+    template.hasResourceProperties(
+      "AWS::SQS::Queue",
+      Match.objectLike({ RedrivePolicy: Match.objectLike({ maxReceiveCount: 3 }) }),
+    );
+  });
+
+  it("has an EventBridge bus, an SNS topic, 3 Lambdas, and 2 event sources", () => {
+    template.resourceCountIs("AWS::Events::EventBus", 1);
+    template.resourceCountIs("AWS::SNS::Topic", 1);
+    template.resourceCountIs("AWS::Lambda::Function", 3);
+    // DynamoDB stream source + SQS source
+    template.resourceCountIs("AWS::Lambda::EventSourceMapping", 2);
   });
 });
