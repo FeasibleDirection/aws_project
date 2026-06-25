@@ -3,7 +3,7 @@
 一个用来准备 **后端 / 平台工程 / 云** 方向 AWS 面试的"全套" CRUD demo。
 单一 TypeScript monorepo,业务域是 **Orders 订单**,主干是 **API Gateway HTTP API → Lambda → DynamoDB**,基建全用 **AWS CDK (TypeScript)**。每个 AWS 模块都配一篇 [`docs/`](./docs) 讲稿(service → 考点)。
 
-> 完整规划见 `C:\Users\Administrator\.claude\plans\plan-keen-hippo.md`。当前已完成 **Phase 1(核心 CRUD 主干)**。
+> 分阶段实施(Phase 1–9),每个阶段一篇讲稿见 [`docs/`](./docs)。
 
 ## 结构
 

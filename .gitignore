@@ -22,6 +22,7 @@ cdk.context.json.bak
 .DS_Store
 Thumbs.db
 
-# unrelated projects / archives that live alongside this repo
+# unrelated projects / archives / installers that live alongside this repo
 /my_code/
 *.rar
+*.msi
