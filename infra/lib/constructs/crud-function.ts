@@ -3,6 +3,7 @@ import { Duration, RemovalPolicy } from "aws-cdk-lib";
 import { Architecture, Runtime, Tracing } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import type { ISecurityGroup, IVpc, SubnetSelection } from "aws-cdk-lib/aws-ec2";
 import { SERVICE_NAME } from "../constants";
 
 export interface CrudFunctionProps {
@@ -12,6 +13,12 @@ export interface CrudFunctionProps {
   readonly environment?: Record<string, string>;
   readonly memorySize?: number;
   readonly timeout?: Duration;
+  /** VPC placement (Phase 7: rds/cache handlers run in private subnets). */
+  readonly vpc?: IVpc;
+  readonly vpcSubnets?: SubnetSelection;
+  readonly securityGroups?: ISecurityGroup[];
+  /** Extra modules to leave unbundled (e.g. pg-native optional dep). */
+  readonly externalModules?: string[];
 }
 
 /**
@@ -41,10 +48,16 @@ export class CrudFunction extends Construct {
       tracing: Tracing.ACTIVE,
       logGroup,
       description: props.description,
+      vpc: props.vpc,
+      vpcSubnets: props.vpcSubnets,
+      securityGroups: props.securityGroups,
       bundling: {
         minify: true,
         sourceMap: true,
         // @aws-sdk/* is provided by the nodejs22 runtime (externalised by default)
+        ...(props.externalModules
+          ? { externalModules: ["@aws-sdk/*", ...props.externalModules] }
+          : {}),
       },
       environment: {
         POWERTOOLS_SERVICE_NAME: SERVICE_NAME,

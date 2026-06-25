@@ -7,6 +7,9 @@ import { CoreApiStack } from "../lib/stacks/core-api-stack";
 import { AsyncStack } from "../lib/stacks/async-stack";
 import { OrchestrationStack } from "../lib/stacks/orchestration-stack";
 import { ObservabilityStack } from "../lib/stacks/observability-stack";
+import { NetworkStack } from "../lib/stacks/network-stack";
+import { DataStack } from "../lib/stacks/data-stack";
+import { CacheStack } from "../lib/stacks/cache-stack";
 
 const app = new App();
 const config = getConfig("dev");
@@ -41,6 +44,20 @@ new ObservabilityStack(app, "ObservabilityStack", {
   alarmEmail: config.alarmEmail,
   monthlyBudgetUsd: config.monthlyBudgetUsd,
 });
+
+// Phase 7: relational + cache + VPC. COST-BEARING and gated behind a context
+// flag so a plain `cdk deploy --all` never spins them up. To use them:
+//   cdk deploy NetworkStack DataStack CacheStack -c withData=true
+//   cdk destroy NetworkStack DataStack CacheStack -c withData=true   (after demo)
+if (app.node.tryGetContext("withData") === "true") {
+  const network = new NetworkStack(app, "NetworkStack", { env: config.env });
+  new DataStack(app, "DataStack", { env: config.env, vpc: network.vpc });
+  new CacheStack(app, "CacheStack", {
+    env: config.env,
+    vpc: network.vpc,
+    table: core.table,
+  });
+}
 
 // Cost tracking + ownership tags applied to every resource.
 Tags.of(app).add("Project", APP_NAME);

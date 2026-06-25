@@ -86,6 +86,6 @@ curl.exe -s -X POST "$api/orders" -H "authorization: Bearer $TOKEN" -H "content-
 | 4 | 异步:Streams→EventBridge→SQS+DLQ→SNS + 定时清理 | ✅ |
 | 5 | Step Functions 履约 saga(Retry/Catch/补偿) | ✅ |
 | 6 | 可观测:Powertools+X-Ray+CloudWatch Dashboard/告警+Budget | ✅ |
-| 7 | Aurora Serverless v2 + ElastiCache + VPC(按需) | ⏳ |
+| 7 | Aurora SLv2 + RDS Proxy + ElastiCache + 零NAT VPC(按需·计费) | ✅ |
 | 8 | Secrets/SSM/KMS + Budgets | ⏳ |
 | 9 | CI/CD(GitHub Actions OIDC) | ⏳ |

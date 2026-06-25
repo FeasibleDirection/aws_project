@@ -7,6 +7,9 @@ import { CoreApiStack } from "../lib/stacks/core-api-stack";
 import { AsyncStack } from "../lib/stacks/async-stack";
 import { OrchestrationStack } from "../lib/stacks/orchestration-stack";
 import { ObservabilityStack } from "../lib/stacks/observability-stack";
+import { NetworkStack } from "../lib/stacks/network-stack";
+import { DataStack } from "../lib/stacks/data-stack";
+import { CacheStack } from "../lib/stacks/cache-stack";
 
 const ENV = { account: "123456789012", region: "us-east-1" };
 
@@ -194,5 +197,41 @@ describe("ObservabilityStack", () => {
     template.resourceCountIs("AWS::CloudWatch::Dashboard", 1);
     template.resourceCountIs("AWS::CloudWatch::Alarm", 3);
     template.resourceCountIs("AWS::Budgets::Budget", 1);
+  });
+});
+
+describe("Phase 7 on-demand stacks (synth-only)", () => {
+  const app = new App();
+  const auth = new AuthStack(app, "A5", { env: ENV });
+  const storage = new StorageStack(app, "St5", { env: ENV });
+  const core = new CoreApiStack(app, "C5", {
+    env: ENV,
+    userPool: auth.userPool,
+    userPoolClient: auth.userPoolClient,
+    bucket: storage.bucket,
+  });
+  const network = new NetworkStack(app, "Net5", { env: ENV });
+  const data = new DataStack(app, "Data5", { env: ENV, vpc: network.vpc });
+  const cache = new CacheStack(app, "Cache5", {
+    env: ENV,
+    vpc: network.vpc,
+    table: core.table,
+  });
+
+  it("NetworkStack: zero NAT + gateway/interface endpoints", () => {
+    const t = Template.fromStack(network);
+    t.resourceCountIs("AWS::EC2::NatGateway", 0);
+    t.resourceCountIs("AWS::EC2::VPCEndpoint", 3); // S3 + DynamoDB + Secrets
+  });
+
+  it("DataStack: Aurora cluster + RDS Proxy", () => {
+    const t = Template.fromStack(data);
+    t.resourceCountIs("AWS::RDS::DBCluster", 1);
+    t.resourceCountIs("AWS::RDS::DBProxy", 1);
+  });
+
+  it("CacheStack: ElastiCache Serverless cache", () => {
+    const t = Template.fromStack(cache);
+    t.resourceCountIs("AWS::ElastiCache::ServerlessCache", 1);
   });
 });
