@@ -48,6 +48,7 @@ export class CrudFunction extends Construct {
       },
       environment: {
         POWERTOOLS_SERVICE_NAME: SERVICE_NAME,
+        POWERTOOLS_METRICS_NAMESPACE: "OrdersApi",
         LOG_LEVEL: "INFO",
         NODE_OPTIONS: "--enable-source-maps",
         ...props.environment,

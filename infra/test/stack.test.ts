@@ -6,6 +6,7 @@ import { StorageStack } from "../lib/stacks/storage-stack";
 import { CoreApiStack } from "../lib/stacks/core-api-stack";
 import { AsyncStack } from "../lib/stacks/async-stack";
 import { OrchestrationStack } from "../lib/stacks/orchestration-stack";
+import { ObservabilityStack } from "../lib/stacks/observability-stack";
 
 const ENV = { account: "123456789012", region: "us-east-1" };
 
@@ -168,5 +169,30 @@ describe("OrchestrationStack", () => {
 
   it("subscribes the state machine to order.created", () => {
     template.resourceCountIs("AWS::Events::Rule", 1);
+  });
+});
+
+describe("ObservabilityStack", () => {
+  const app = new App();
+  const auth = new AuthStack(app, "A4", { env: ENV });
+  const storage = new StorageStack(app, "St4", { env: ENV });
+  const core = new CoreApiStack(app, "C4", {
+    env: ENV,
+    userPool: auth.userPool,
+    userPoolClient: auth.userPoolClient,
+    bucket: storage.bucket,
+  });
+  const asyncStack = new AsyncStack(app, "Asy4", { env: ENV, table: core.table });
+  const stack = new ObservabilityStack(app, "Obs4", {
+    env: ENV,
+    deadLetterQueue: asyncStack.deadLetterQueue,
+    monthlyBudgetUsd: 10,
+  });
+  const template = Template.fromStack(stack);
+
+  it("creates a dashboard, 3 alarms, and a monthly budget", () => {
+    template.resourceCountIs("AWS::CloudWatch::Dashboard", 1);
+    template.resourceCountIs("AWS::CloudWatch::Alarm", 3);
+    template.resourceCountIs("AWS::Budgets::Budget", 1);
   });
 });

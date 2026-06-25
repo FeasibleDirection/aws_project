@@ -29,6 +29,8 @@ export interface AsyncStackProps extends StackProps {
 export class AsyncStack extends Stack {
   /** Exposed so OrchestrationStack can subscribe to order.created. */
   readonly bus: EventBus;
+  /** Exposed so ObservabilityStack can alarm on DLQ depth. */
+  readonly deadLetterQueue: Queue;
 
   constructor(scope: Construct, id: string, props: AsyncStackProps) {
     super(scope, id, props);
@@ -40,7 +42,10 @@ export class AsyncStack extends Stack {
       topicName: "order-notifications",
     });
 
-    const dlq = new Queue(this, "OrderDLQ", { retentionPeriod: Duration.days(14) });
+    this.deadLetterQueue = new Queue(this, "OrderDLQ", {
+      retentionPeriod: Duration.days(14),
+    });
+    const dlq = this.deadLetterQueue;
     const queue = new Queue(this, "OrderQueue", {
       visibilityTimeout: Duration.seconds(60),
       // poison messages move to the DLQ after 3 failed receives

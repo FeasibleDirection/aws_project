@@ -85,7 +85,7 @@ curl.exe -s -X POST "$api/orders" -H "authorization: Bearer $TOKEN" -H "content-
 | 3 | S3 presigned 上传/下载(订单附件) | ✅ |
 | 4 | 异步:Streams→EventBridge→SQS+DLQ→SNS + 定时清理 | ✅ |
 | 5 | Step Functions 履约 saga(Retry/Catch/补偿) | ✅ |
-| 6 | 可观测(Powertools+X-Ray+CloudWatch) | ⏳ |
+| 6 | 可观测:Powertools+X-Ray+CloudWatch Dashboard/告警+Budget | ✅ |
 | 7 | Aurora Serverless v2 + ElastiCache + VPC(按需) | ⏳ |
 | 8 | Secrets/SSM/KMS + Budgets | ⏳ |
 | 9 | CI/CD(GitHub Actions OIDC) | ⏳ |

@@ -6,6 +6,7 @@ import { StorageStack } from "../lib/stacks/storage-stack";
 import { CoreApiStack } from "../lib/stacks/core-api-stack";
 import { AsyncStack } from "../lib/stacks/async-stack";
 import { OrchestrationStack } from "../lib/stacks/orchestration-stack";
+import { ObservabilityStack } from "../lib/stacks/observability-stack";
 
 const app = new App();
 const config = getConfig("dev");
@@ -31,6 +32,14 @@ new OrchestrationStack(app, "OrchestrationStack", {
   env: config.env,
   table: core.table,
   bus: asyncStack.bus,
+});
+
+// Phase 6: dashboards, alarms, and the cost budget.
+new ObservabilityStack(app, "ObservabilityStack", {
+  env: config.env,
+  deadLetterQueue: asyncStack.deadLetterQueue,
+  alarmEmail: config.alarmEmail,
+  monthlyBudgetUsd: config.monthlyBudgetUsd,
 });
 
 // Cost tracking + ownership tags applied to every resource.
