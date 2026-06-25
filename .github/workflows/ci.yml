@@ -46,5 +46,6 @@ jobs:
           aws-region: us-east-1
       - run: pnpm openapi:gen
       # Deploys the 7 always-on stacks; the cost-bearing Phase 7 stacks are
-      # excluded (they require -c withData=true).
-      - run: pnpm --filter @app/infra run deploy -- --all --require-approval never
+      # excluded (they require -c withData=true). Use `exec cdk` (not `run
+      # deploy --`) so args aren't swallowed by the pnpm script's `--`.
+      - run: pnpm --filter @app/infra exec cdk deploy --all --require-approval never

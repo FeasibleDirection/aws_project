@@ -30,4 +30,10 @@ pnpm --filter @app/infra run destroy -- NetworkStack DataStack CacheStack -c wit
 ```
 一次 2 小时 demo < $1;忘记销毁:RDS Proxy ~$88/月、ElastiCache ~$6/月。Function URL 为演示用 `authType: NONE`(公开),生产应上 IAM/授权。
 
+## 部署踩坑(真实记录)
+
+- **Aurora 在"免费计划"账号被禁**:2025 新的 $100 额度账号属于 free plan,创建 Aurora 集群报 `you need to set WithExpressConfiguration, or upgrade your account plan`。要么升级账号计划,要么用受限的 Express 配置(不一定支持 serverless v2 scale-to-zero)。本项目 DataStack 已 synth 验证,但在这种账号上只能离线验证。
+- **SG 规则描述不能有非 ASCII**:EC2 security group 规则描述只允许 `a-zA-Z0-9. _-:/()#,@[]+=&;{}!$*`,别用 `→` 这种箭头(否则 `Invalid rule description`)。
+- **NetworkStack(零 NAT VPC)+ ElastiCache Serverless 在 free plan 账号可正常部署**;只有 Aurora 受限。
+
 相关:[[06-observability-powertools]]、下一步 [[08-secrets]]

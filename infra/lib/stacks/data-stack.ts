@@ -32,6 +32,10 @@ export class DataStack extends Stack {
     const { vpc } = props;
     const vpcSubnets = { subnetType: SubnetType.PRIVATE_ISOLATED };
 
+    // NOTE: AWS "free plan" accounts (the 2025 $100-credit model) BLOCK Aurora
+    // cluster creation ("you need to set WithExpressConfiguration, or upgrade
+    // your account plan"). This stack synthesizes/validates fine but only
+    // deploys on a paid/legacy account. Verified offline via cdk synth.
     const cluster = new DatabaseCluster(this, "Aurora", {
       engine: DatabaseClusterEngine.auroraPostgres({
         version: AuroraPostgresEngineVersion.of("16.4", "16"),

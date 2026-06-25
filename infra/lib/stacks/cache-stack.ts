@@ -30,7 +30,7 @@ export class CacheStack extends Stack {
 
     const cacheSg = new SecurityGroup(this, "CacheSg", { vpc });
     const lambdaSg = new SecurityGroup(this, "CacheLambdaSg", { vpc });
-    cacheSg.addIngressRule(lambdaSg, Port.tcp(6379), "cache-aside Lambda → Valkey");
+    cacheSg.addIngressRule(lambdaSg, Port.tcp(6379), "cache-aside Lambda to Valkey");
 
     const cache = new CfnServerlessCache(this, "Valkey", {
       engine: "valkey",
