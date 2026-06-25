@@ -88,4 +88,4 @@ curl.exe -s -X POST "$api/orders" -H "authorization: Bearer $TOKEN" -H "content-
 | 6 | 可观测:Powertools+X-Ray+CloudWatch Dashboard/告警+Budget | ✅ |
 | 7 | Aurora SLv2 + RDS Proxy + ElastiCache + 零NAT VPC(按需·计费) | ✅ |
 | 8 | ConfigStack:KMS CMK + SSM 配置 + Secrets(CMK 加密)+ Aurora 轮换 | ✅ |
-| 9 | CI/CD(GitHub Actions OIDC) | ⏳ |
+| 9 | CI/CD:GitHub Actions + OIDC（无长期密钥）+ 最小权限部署角色 | ✅ |

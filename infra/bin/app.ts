@@ -11,6 +11,7 @@ import { ObservabilityStack } from "../lib/stacks/observability-stack";
 import { NetworkStack } from "../lib/stacks/network-stack";
 import { DataStack } from "../lib/stacks/data-stack";
 import { CacheStack } from "../lib/stacks/cache-stack";
+import { PipelineStack } from "../lib/stacks/pipeline-stack";
 
 const app = new App();
 const config = getConfig("dev");
@@ -61,6 +62,13 @@ if (app.node.tryGetContext("withData") === "true") {
     vpc: network.vpc,
     table: core.table,
   });
+}
+
+// Phase 9: GitHub OIDC deploy role. Opt-in (creates an account-wide OIDC
+// provider): cdk deploy PipelineStack -c githubRepo=owner/repo
+const githubRepo = app.node.tryGetContext("githubRepo");
+if (githubRepo) {
+  new PipelineStack(app, "PipelineStack", { env: config.env, githubRepo });
 }
 
 // Cost tracking + ownership tags applied to every resource.

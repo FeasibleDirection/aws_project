@@ -11,6 +11,7 @@ import { NetworkStack } from "../lib/stacks/network-stack";
 import { DataStack } from "../lib/stacks/data-stack";
 import { CacheStack } from "../lib/stacks/cache-stack";
 import { ConfigStack } from "../lib/stacks/config-stack";
+import { PipelineStack } from "../lib/stacks/pipeline-stack";
 
 const ENV = { account: "123456789012", region: "us-east-1" };
 
@@ -249,5 +250,21 @@ describe("ConfigStack", () => {
     );
     template.resourceCountIs("AWS::SSM::Parameter", 1);
     template.resourceCountIs("AWS::SecretsManager::Secret", 1);
+  });
+});
+
+describe("PipelineStack", () => {
+  const app = new App();
+  const stack = new PipelineStack(app, "Pipe9", {
+    env: ENV,
+    githubRepo: "owner/repo",
+  });
+  const template = Template.fromStack(stack);
+
+  it("creates a named GitHub OIDC deploy role", () => {
+    template.hasResourceProperties(
+      "AWS::IAM::Role",
+      Match.objectLike({ RoleName: "orders-demo-github-deploy" }),
+    );
   });
 });

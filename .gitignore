@@ -21,3 +21,7 @@ cdk.context.json.bak
 # os
 .DS_Store
 Thumbs.db
+
+# unrelated projects / archives that live alongside this repo
+/my_code/
+*.rar
