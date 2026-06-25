@@ -20,12 +20,12 @@
 
 ## 已落地
 
-- ConfigStack(常开):CMK(`alias/orders-demo`,开轮换)+ SSM 参数 `/aws-crud-demo/dev/feature-flags` + Secrets Manager 密钥(CMK 加密)。
+- ConfigStack(常开):CMK(`alias/orders-demo`,开轮换)+ SSM 参数 `/orders-demo/dev/feature-flags`(注意:SSM 参数名不能以 `aws`/`ssm` 开头)+ Secrets Manager 密钥(CMK 加密)。
 - DataStack(按需):Aurora 主密钥 + RDS Proxy 用该密钥 + `addRotationSingleUser` 自动轮换。
 - ObservabilityStack(Phase 6):CfnBudget 也是"配置即代码"的一例。
 
 ## 验证(部署后)
 
-`aws ssm get-parameter --name /aws-crud-demo/dev/feature-flags`;`aws secretsmanager describe-secret --secret-id orders-demo/third-party-api-key`(看 KmsKeyId 指向 CMK);`aws kms describe-key --key-id alias/orders-demo`(看 KeyRotationEnabled)。
+`aws ssm get-parameter --name /orders-demo/dev/feature-flags`;`aws secretsmanager describe-secret --secret-id orders-demo/third-party-api-key`(看 KmsKeyId 指向 CMK);`aws kms describe-key --key-id alias/orders-demo`(看 KeyRotationEnabled)。
 
 相关:[[07-relational-rds-cache]]、下一步 [[09-cicd-oidc]]

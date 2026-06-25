@@ -26,7 +26,8 @@ export class ConfigStack extends Stack {
 
     // Non-secret config → SSM Parameter Store (free, IAM-scoped, versioned).
     new StringParameter(this, "FeatureFlags", {
-      parameterName: "/aws-crud-demo/dev/feature-flags",
+      // NB: SSM parameter names can't start with "aws" or "ssm" (reserved)
+      parameterName: "/orders-demo/dev/feature-flags",
       stringValue: JSON.stringify({ newCheckout: false, betaUsers: [] }),
       description: "Non-secret app config (SSM Parameter Store)",
     });
