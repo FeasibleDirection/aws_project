@@ -57,6 +57,10 @@ export class DataStack extends Stack {
     proxy.connections.allowFrom(lambdaSg, Port.tcp(5432));
     cluster.connections.allowDefaultPortFrom(proxy);
 
+    // Automatic credential rotation (every 30 days) — the rotation Lambda runs
+    // in-VPC and reaches Secrets Manager via the interface endpoint.
+    cluster.addRotationSingleUser();
+
     const rdsFn = new CrudFunction(this, "RdsHandlerFn", {
       entry: resolve(DATA_DIR, "rds-handler.ts"),
       vpc,

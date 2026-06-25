@@ -10,6 +10,7 @@ import { ObservabilityStack } from "../lib/stacks/observability-stack";
 import { NetworkStack } from "../lib/stacks/network-stack";
 import { DataStack } from "../lib/stacks/data-stack";
 import { CacheStack } from "../lib/stacks/cache-stack";
+import { ConfigStack } from "../lib/stacks/config-stack";
 
 const ENV = { account: "123456789012", region: "us-east-1" };
 
@@ -233,5 +234,20 @@ describe("Phase 7 on-demand stacks (synth-only)", () => {
   it("CacheStack: ElastiCache Serverless cache", () => {
     const t = Template.fromStack(cache);
     t.resourceCountIs("AWS::ElastiCache::ServerlessCache", 1);
+  });
+});
+
+describe("ConfigStack", () => {
+  const app = new App();
+  const stack = new ConfigStack(app, "Config9", { env: ENV });
+  const template = Template.fromStack(stack);
+
+  it("creates a rotating CMK, an SSM param, and a CMK-encrypted secret", () => {
+    template.hasResourceProperties(
+      "AWS::KMS::Key",
+      Match.objectLike({ EnableKeyRotation: true }),
+    );
+    template.resourceCountIs("AWS::SSM::Parameter", 1);
+    template.resourceCountIs("AWS::SecretsManager::Secret", 1);
   });
 });

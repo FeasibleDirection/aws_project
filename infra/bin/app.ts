@@ -1,6 +1,7 @@
 import { App, Tags } from "aws-cdk-lib";
 import { getConfig } from "../lib/config";
 import { APP_NAME } from "../lib/constants";
+import { ConfigStack } from "../lib/stacks/config-stack";
 import { AuthStack } from "../lib/stacks/auth-stack";
 import { StorageStack } from "../lib/stacks/storage-stack";
 import { CoreApiStack } from "../lib/stacks/core-api-stack";
@@ -13,6 +14,9 @@ import { CacheStack } from "../lib/stacks/cache-stack";
 
 const app = new App();
 const config = getConfig("dev");
+
+// Phase 8: foundational config + secrets (KMS CMK, SSM params, Secrets Manager).
+new ConfigStack(app, "ConfigStack", { env: config.env });
 
 // Phase 2: Cognito pool fronts the API. Phase 3: S3 bucket for attachments.
 const auth = new AuthStack(app, "AuthStack", { env: config.env });
